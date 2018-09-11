@@ -7,7 +7,7 @@ public class CharActions2D : MonoBehaviour {
 	public bool startActiveDebugCoroutine = false, startStatesDebugCoroutine = false;
 	[SerializeField] bool startActive;
 	[SerializeField] CharActiveHolder2D charActiveHolder;
-	[SerializeField] float swingStrength = 300, walkSpeed = 300, climbSpeed = 1, aimSpeed = 100f, throwForce = 10f;
+	[SerializeField] float swingStrength = 300, walkSpeed = 300, climbSpeed = 1, aimSpeed = 100f, throwForce = 10f, maxRopeLength = 2f;
 	[SerializeField] CharID charID;
 	[SerializeField] LayerMask groundLayers, obstacleLayers;
 	[SerializeField] SpriteRenderer throwArrow;
@@ -46,6 +46,12 @@ public class CharActions2D : MonoBehaviour {
 					break;
 				case CharacterState.Grounded:
 					GetAxisInputHorizontal();
+					if(charActiveHolder.State(otherID) == CharacterState.Grappling){
+						GetJumpThroughAction();
+					}
+					break;
+				case CharacterState.Braced:
+					ToggleBraced(false);
 					break;
 				case CharacterState.Throwing:
 					//ignore inputs
@@ -75,13 +81,15 @@ public class CharActions2D : MonoBehaviour {
 	}
 
 	public void ThrowInDirection(Vector2 direction){
+		distanceJoint.distance = currentRopeLength = maxRopeLength;
 		charActiveHolder.SwitchStateOfTo(charID, CharacterState.Hanging);
+		body.constraints = RigidbodyConstraints2D.None;
 		body.AddForce(direction * throwForce, ForceMode2D.Impulse);
 	}
 
 	void GetJumpThroughAction(){
 		if(Input.GetButtonDown("PlayerAction") && !actionStarted){
-			Debug.Log("Jump through action on " + charID);
+			//Debug.Log("Jump through action on " + charID);
 			actionStarted = true;
 			passThroughActive = true;
 			StartCoroutine(SwitchHolder());
@@ -102,10 +110,22 @@ public class CharActions2D : MonoBehaviour {
 		if(grapple){
 			charActiveHolder.SwitchStateOfTo(charID, CharacterState.Grappling);
 			transform.rotation = Quaternion.identity;
-			body.constraints = RigidbodyConstraints2D.FreezeAll;
+			body.constraints = RigidbodyConstraints2D.FreezePosition;
 		} else {
 			charActiveHolder.SwitchStateOfTo(charID, CharacterState.Hanging);
 			body.constraints = RigidbodyConstraints2D.FreezeRotation;
+		}
+	}
+
+	void ToggleBraced(bool braced){
+		if(braced){
+			charActiveHolder.SwitchStateOfTo(charID, CharacterState.Braced);
+			transform.rotation = Quaternion.identity;
+			body.constraints = RigidbodyConstraints2D.FreezePosition;
+			charActiveHolder.SwitchActionBy(charID);
+		} else {
+			charActiveHolder.SwitchStateOfTo(charID, CharacterState.Grounded);
+			body.constraints = RigidbodyConstraints2D.None;
 		}
 	}
 
@@ -139,7 +159,7 @@ public class CharActions2D : MonoBehaviour {
 
 	void GetAxisInputVertical(){
 		vertical = Input.GetAxis("Vertical");
-		if(Mathf.Abs(vertical) > 0.5f && charActiveHolder.State(charID) == CharacterState.Hanging){
+		if(Mathf.Abs(vertical) > 0.5f && charActiveHolder.State(charID) == CharacterState.Hanging && body.velocity.magnitude < 0.2f){
 			distanceJoint.distance = currentRopeLength = Mathf.Clamp(currentRopeLength + vertical * climbSpeed * Time.deltaTime, 0.2f, 2f);
 		}
 	}
@@ -149,10 +169,14 @@ public class CharActions2D : MonoBehaviour {
 		if(groundLayers.Contains(collisionLayer)){
 			hit = Physics2D.Raycast(transform.position, Vector2.down, 0.5f, groundLayers, -0.5f, 0.5f);
 			if(hit.collider != null){
-				Debug.DrawRay(transform.position, Vector3.down * 0.5f, Color.red, 5f, false);
-				//charActiveHolder.SwitchStateOfTo(charID, CharacterState.Grounded);
-				if(!charActiveHolder.Combined)
+				Debug.DrawRay(transform.position, Vector2.down * 0.5f, Color.red, 5f, false);
+				if(charActiveHolder.Combined){
+					return;
+				} else if(charActiveHolder.State(otherID) == CharacterState.Braced && !charActiveHolder.Combined)
 					CombineCharacters();
+				else {
+					ToggleBraced(true);
+				}
 			}
 		} else if(obstacleLayers.Contains(collisionLayer)){
 
@@ -183,6 +207,15 @@ public class CharActions2D : MonoBehaviour {
 		CharacterState currentState = charActiveHolder.State(charID);
 		if(currentState == CharacterState.Initialize || currentState != CharacterState.Grounded){
 			charActiveHolder.SwitchStateOfTo(charID, CharacterState.Hanging);
+		}
+	}
+
+	public void CheckForGround(){
+		Debug.Log(charID + " checked for ground");
+		if(Physics2D.Raycast(transform.position, Vector2.down, 0.5f, groundLayers, -0.5f, 0.5f).collider == null){
+			charActiveHolder.SwitchStateOfTo(charID, CharacterState.Hanging);
+		} else {
+			charActiveHolder.SwitchStateOfTo(charID, CharacterState.Grounded);
 		}
 	}
 
@@ -233,7 +266,7 @@ public class CharActions2D : MonoBehaviour {
 		throwArrow.enabled = false;
 		other.TogglePhysics(true);
 		other.ThrowInDirection(throwArrow.transform.right);
-		charActiveHolder.SwitchActiveTo(otherID);
+		ToggleBraced(true);
 		actionStarted = false;
 	}
 

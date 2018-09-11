@@ -4,7 +4,6 @@ using UnityEngine;
 
 [CreateAssetMenu(menuName="CharActiveHolder2D")]
 public class CharActiveHolder2D : ScriptableObject {
-
 	
 	public delegate void SwitchCharacterStateDelegate(CharID charID, CharacterState newState);
 	public event SwitchCharacterStateDelegate switchCharacterStateEvent;
@@ -36,6 +35,7 @@ public class CharActiveHolder2D : ScriptableObject {
 			//CharActions.active[CharID.charA] = value;
 			if(switchCharacterStateEvent != null && value == true) {
 				switchCharacterStateEvent(CharID.charA, CharStateA);
+				charActionsDic2D[CharID.charA].CheckForGround();
 			}
 		}
 	}
@@ -47,6 +47,7 @@ public class CharActiveHolder2D : ScriptableObject {
 			//CharActions.active[CharID.charB] = value;
 			if(switchCharacterStateEvent != null && value == true) {
 				switchCharacterStateEvent(CharID.charB, CharStateB);
+				charActionsDic2D[CharID.charB].CheckForGround();
 			}
 		}
 	}
@@ -148,7 +149,7 @@ public class CharActiveHolder2D : ScriptableObject {
 	}
 
 	public bool BothGrounded(){
-		return (CharStateA == CharacterState.Grounded && CharStateB == CharacterState.Grounded);
+		return ((CharStateA == CharacterState.Grounded || CharStateA == CharacterState.Braced) && (CharStateB == CharacterState.Grounded || CharStateB == CharacterState.Braced));
 	}
 
 }
