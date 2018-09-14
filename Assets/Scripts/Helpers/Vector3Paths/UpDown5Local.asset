@@ -8,10 +8,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ec68895742644fa4a95e5329a7e7a776, type: 3}
-  m_Name: New Char Active Holder 2D
+  m_Script: {fileID: 11500000, guid: 9f5ecb6b81968d145a979ac8719ed026, type: 3}
+  m_Name: UpDown5Local
   m_EditorClassIdentifier: 
-  v_charActiveA: 0
-  v_charActiveB: 1
-  v_charStateA: 1
-  v_charStateB: 1
+  localCoordinates: 1
+  path:
+  - {x: 0, y: 5, z: 1}
+  - {x: 0, y: -5, z: 1}

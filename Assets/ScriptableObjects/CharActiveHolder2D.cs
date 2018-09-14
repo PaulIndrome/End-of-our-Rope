@@ -96,15 +96,13 @@ public class CharActiveHolder2D : ScriptableObject {
 		//Debug.Log("Switchaction by " + sentCharID + " at " + Time.time);
 		if(sentCharID == CharID.charA){
 			CharActiveA = false;
-			CharActiveB = true;
 		} else {
-			CharActiveA = true;
 			CharActiveB = false;
 		}
 	}
 
-	public void SwitchActiveTo(CharID sentCharID){
-		if(sentCharID == CharID.charA){
+	public void SwitchActiveTo(CharID charID){
+		if(charID == CharID.charA){
 			CharActiveA = true;
 		} else {
 			CharActiveB = true;

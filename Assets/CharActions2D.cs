@@ -9,7 +9,7 @@ public class CharActions2D : MonoBehaviour {
 	[SerializeField] CharActiveHolder2D charActiveHolder;
 	[SerializeField] float swingStrength = 300, walkSpeed = 300, climbSpeed = 1, aimSpeed = 100f, throwForce = 10f, maxRopeLength = 2f;
 	[SerializeField] CharID charID;
-	[SerializeField] LayerMask groundLayers, obstacleLayers;
+	[SerializeField] LayerMask groundLayers, obstacleLayers, damagingLayers;
 	[SerializeField] SpriteRenderer throwArrow;
 	float horizontal, vertical;
 	static float currentRopeLength = 1.5f;
@@ -46,6 +46,7 @@ public class CharActions2D : MonoBehaviour {
 					break;
 				case CharacterState.Grounded:
 					GetAxisInputHorizontal();
+					GetAxisInputVertical();
 					if(charActiveHolder.State(otherID) == CharacterState.Grappling){
 						GetJumpThroughAction();
 					}
@@ -61,6 +62,7 @@ public class CharActions2D : MonoBehaviour {
 					GetThrowAction();
 					break;
 				case CharacterState.Thrown:
+				charActiveHolder.SwitchActiveTo(charID);
 					break;
 			}
 		} else {
@@ -76,6 +78,10 @@ public class CharActions2D : MonoBehaviour {
 		if(Input.GetButtonDown("PlayerAction") && !actionStarted){
 			charActiveHolder.ThrowInitiated(charID);
 			actionStarted = true;
+			transform.rotation = Quaternion.identity;
+			body.constraints = RigidbodyConstraints2D.FreezePosition;
+			body.velocity = Vector2.zero;
+			body.angularVelocity = 0f;
 			StartCoroutine(ThrowAction());
 		}
 	}
@@ -122,6 +128,8 @@ public class CharActions2D : MonoBehaviour {
 			charActiveHolder.SwitchStateOfTo(charID, CharacterState.Braced);
 			transform.rotation = Quaternion.identity;
 			body.constraints = RigidbodyConstraints2D.FreezePosition;
+			body.velocity = Vector2.zero;
+			body.angularVelocity = 0f;
 			charActiveHolder.SwitchActionBy(charID);
 		} else {
 			charActiveHolder.SwitchStateOfTo(charID, CharacterState.Grounded);
@@ -148,19 +156,19 @@ public class CharActions2D : MonoBehaviour {
 	void GetAxisInputHorizontal(){
 		horizontal = Input.GetAxis("Horizontal");
 		if(Mathf.Abs(horizontal) > 0.05f){
-			if(charActiveHolder.State(charID) == CharacterState.Grounded || charActiveHolder.State(charID) == CharacterState.Combined){
+			if(charActiveHolder.State(charID) == CharacterState.Hanging){
+				body.AddForce(new Vector2(horizontal * swingStrength * Time.deltaTime, 0));
+			} else if(charActiveHolder.State(charID) == CharacterState.Grounded || charActiveHolder.State(charID) == CharacterState.Combined) {
 				body.AddForce(new Vector2(horizontal * walkSpeed * Time.deltaTime, 0));
 			}
-			else if(charActiveHolder.State(charID) == CharacterState.Hanging){
-				body.AddForce(new Vector2(horizontal * swingStrength * Time.deltaTime, 0));
-			}
+
 		}
 	}
 
 	void GetAxisInputVertical(){
 		vertical = Input.GetAxis("Vertical");
-		if(Mathf.Abs(vertical) > 0.5f && charActiveHolder.State(charID) == CharacterState.Hanging && body.velocity.magnitude < 0.2f){
-			distanceJoint.distance = currentRopeLength = Mathf.Clamp(currentRopeLength + vertical * climbSpeed * Time.deltaTime, 0.2f, 2f);
+		if(Mathf.Abs(vertical) > 0.5f){
+			distanceJoint.distance = currentRopeLength = Mathf.Clamp(currentRopeLength + vertical * climbSpeed * Time.deltaTime, 0.2f, maxRopeLength);
 		}
 	}
 
@@ -180,6 +188,8 @@ public class CharActions2D : MonoBehaviour {
 			}
 		} else if(obstacleLayers.Contains(collisionLayer)){
 
+		} else if(damagingLayers.Contains(collisionLayer)){
+			Debug.LogWarning("Character " + charID.ToString() + " damaged");
 		}
 	}
 
@@ -287,6 +297,8 @@ public class CharActions2D : MonoBehaviour {
 			} 
 			yield return new WaitForSecondsRealtime(0.25f);
 		}
+
+		distanceJoint.distance = maxRopeLength;
 
 		if(charID == CharID.charA){
 			 if(startActiveDebugCoroutine){
